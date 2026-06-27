@@ -198,6 +198,8 @@ script:
       - lvgl.widget.hide: tv_hold_bar
       - lvgl.widget.hide: tv_panel
       - lvgl.widget.show: home_panel
+      # Release the frozen focus so the dial navigates the home tiles again.
+      - lvgl.widget.focus: { id: tv_tile, freeze: false }
       - lambda: 'id(tv_active) = false; id(tv_guard_ms) = millis();'
 
   # Syncs the axis indicator to the current tv_axis value. Uses LVGL's built-in
@@ -615,6 +617,9 @@ lvgl:
                           - script.execute: tv_update_axis_label
                           - lvgl.widget.hide: home_panel
                           - lvgl.widget.show: tv_panel
+                          # Lock the encoder hover onto OK so the dial drives the D-pad
+                          # directly instead of roaming between the on-screen buttons.
+                          - lvgl.widget.focus: { id: tv_ok_btn, freeze: true }
                   widgets:
                     - label: { align: TOP_MID, y: 8, text: "", text_font: montserrat_36, text_color: 0xFFFFFF }
                     - label: { align: BOTTOM_MID, y: -6, text: "TV", text_font: montserrat_14, text_color: 0xFFFFFF }
@@ -674,7 +679,6 @@ lvgl:
                         text_color: 0x666666
               - button:
                   id: tv_up_btn
-                  group: tv_group
                   grid_cell_row_pos: 1
                   grid_cell_column_pos: 1
                   grid_cell_x_align: STRETCH
@@ -685,7 +689,6 @@ lvgl:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
                   id: tv_left_btn
-                  group: tv_group
                   grid_cell_row_pos: 2
                   grid_cell_column_pos: 0
                   grid_cell_x_align: STRETCH
@@ -696,18 +699,16 @@ lvgl:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
                   id: tv_ok_btn
-                  group: tv_group
                   grid_cell_row_pos: 2
                   grid_cell_column_pos: 1
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  on_click:
-                    - homeassistant.service: { service: remote.send_command, data: { command: DPAD_CENTER }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
+                  # No on_click: this button is the frozen encoder focus target, so the
+                  # physical press is handled by the encoder_btn on_multi_click (single = OK).
                   widgets:
                     - label: { align: CENTER, text: "OK", text_font: montserrat_18 }
               - button:
                   id: tv_right_btn
-                  group: tv_group
                   grid_cell_row_pos: 2
                   grid_cell_column_pos: 2
                   grid_cell_x_align: STRETCH
@@ -718,7 +719,6 @@ lvgl:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
                   id: tv_down_btn
-                  group: tv_group
                   grid_cell_row_pos: 3
                   grid_cell_column_pos: 1
                   grid_cell_x_align: STRETCH
@@ -729,7 +729,6 @@ lvgl:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
                   id: tv_back_btn
-                  group: tv_group
                   grid_cell_row_pos: 4
                   grid_cell_column_pos: 0
                   grid_cell_column_span: 3
@@ -740,7 +739,8 @@ lvgl:
                     - lvgl.widget.hide: tv_hold_bar
                     - lvgl.widget.hide: tv_panel
                     - lvgl.widget.show: home_panel
-                    - lambda: 'id(tv_active) = false;'
+                    - lvgl.widget.focus: { id: tv_tile, freeze: false }
+                    - lambda: 'id(tv_active) = false; id(tv_guard_ms) = millis();'
                   widgets:
                     - label: { align: CENTER, text: "  ", text_font: montserrat_18 }
                     - bar:
