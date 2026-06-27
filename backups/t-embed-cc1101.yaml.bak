@@ -1,0 +1,163 @@
+esphome:
+  name: universal-remote
+  on_boot:
+    priority: 800
+    then:
+      - lambda: |-
+          id(disp).enable();
+          id(disp).transfer_byte(0x11);
+          id(disp).disable();
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: "j7yqi+reNJnlqrI7to311dPFlr2tmo9PeVLgf79Feb4="
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: "Armstrongfamily"
+  password: "William109!!!"
+  ap:
+    ssid: "Universal-Remote"
+    password: "WXUOICOpjmKg"
+
+captive_portal:
+
+spi:
+  clk_pin: GPIO11
+  mosi_pin: GPIO9
+  miso_pin: GPIO10
+
+cc1101:
+  cs_pin: GPIO12
+  gdo0_pin:
+    number: GPIO3
+    allow_other_uses: true
+
+remote_receiver:
+  pin:
+    number: GPIO3
+    allow_other_uses: true
+  dump: all
+  tolerance: 25%
+
+remote_transmitter:
+  pin:
+    number: GPIO3
+    allow_other_uses: true
+  carrier_duty_percent: 100%
+  non_blocking: true
+
+display:
+  - platform: st7789v
+    id: disp
+    model: CUSTOM
+    width: 320
+    height: 170
+    offset_width: 0
+    offset_height: 0
+    cs_pin: GPIO41
+    dc_pin: GPIO16
+    reset_pin:
+      number: GPIO45
+    backlight_pin: GPIO21
+    eightbitcolor: false
+    update_interval: never
+
+sensor:
+  - platform: rotary_encoder
+    id: encoder
+    pin_a: GPIO4
+    pin_b: GPIO5
+    resolution: 1
+
+binary_sensor:
+  - platform: gpio
+    id: encoder_btn
+    pin:
+      number: GPIO0
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+
+lvgl:
+  rotation: 90
+  displays:
+    - disp
+  encoders:
+    - sensor: encoder
+      enter_button: encoder_btn
+  pages:
+    - id: main_page
+      widgets:
+        - obj:
+            width: 320
+            height: 170
+            bg_color: 0x000000
+            border_width: 0
+            widgets:
+              - label:
+                  text: "William's Room"
+                  align: TOP_MID
+                  y: 10
+                  text_color: 0xFFFFFF
+                  text_font: montserrat_16
+              - button:
+                  id: right_light_btn
+                  x: 20
+                  y: 40
+                  width: 130
+                  height: 50
+                  widgets:
+                    - label:
+                        text: "Right Lamp"
+                  on_click:
+                    - homeassistant.service:
+                        service: switch.toggle
+                        data:
+                          entity_id: switch.right_bed_lamp
+              - button:
+                  id: left_light_btn
+                  x: 170
+                  y: 40
+                  width: 130
+                  height: 50
+                  widgets:
+                    - label:
+                        text: "Left Lamp"
+                  on_click:
+                    - homeassistant.service:
+                        service: switch.toggle
+                        data:
+                          entity_id: switch.left_bed_lamp
+              - button:
+                  id: all_off_btn
+                  x: 70
+                  y: 105
+                  width: 180
+                  height: 50
+                  widgets:
+                    - label:
+                        text: "All Off"
+                  on_click:
+                    - homeassistant.service:
+                        service: switch.turn_off
+                        data:
+                          entity_id: switch.right_bed_lamp
+                    - homeassistant.service:
+                        service: switch.turn_off
+                        data:
+                          entity_id: switch.left_bed_lamp
+
+button:
+  - platform: restart
+    name: "Remote Restart"

@@ -1,0 +1,480 @@
+esphome:
+  name: universal-remote
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: "j7yqi+reNJnlqrI7to311dPFlr2tmo9PeVLgf79Feb4="
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: "Armstrongfamily"
+  password: "William109!!!"
+  ap:
+    ssid: "Universal-Remote"
+    password: "WXUOICOpjmKg"
+
+captive_portal:
+
+time:
+  - platform: homeassistant
+    id: ha_time
+    on_time_sync:
+      then:
+        - lvgl.label.update:
+            id: clock_label
+            text: !lambda 'return id(ha_time).now().strftime("%H:%M");'
+    on_time:
+      - seconds: 0
+        then:
+          - lvgl.label.update:
+              id: clock_label
+              text: !lambda 'return id(ha_time).now().strftime("%H:%M");'
+
+spi:
+  clk_pin: GPIO11
+  mosi_pin: GPIO9
+  miso_pin: GPIO10
+
+cc1101:
+  cs_pin: GPIO12
+  gdo0_pin:
+    number: GPIO3
+    allow_other_uses: true
+
+remote_receiver:
+  pin:
+    number: GPIO3
+    allow_other_uses: true
+  dump: all
+  tolerance: 25%
+
+remote_transmitter:
+  pin:
+    number: GPIO3
+    allow_other_uses: true
+  carrier_duty_percent: 100%
+  non_blocking: true
+
+output:
+  - platform: ledc
+    pin: GPIO21
+    id: backlight_output
+
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: "Display Backlight"
+    id: display_backlight
+    restore_mode: ALWAYS_ON
+
+font:
+  - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/v7.4.47/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_36
+    size: 36
+    bpp: 4
+    glyphs:
+      - "\U000F0335"
+      - "\U000F0336"
+
+display:
+  - platform: mipi_spi
+    id: disp
+    model: ST7789V
+    dimensions:
+      width: 170
+      height: 320
+      offset_width: 35
+      offset_height: 0
+    cs_pin: GPIO41
+    dc_pin: GPIO16
+    invert_colors: true
+    update_interval: never
+    auto_clear_enabled: false
+
+sensor:
+  - platform: rotary_encoder
+    id: encoder
+    pin_a: GPIO4
+    pin_b: GPIO5
+    resolution: 1
+  - platform: wifi_signal
+    id: wifi_db
+    update_interval: 30s
+    internal: true
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: wifi_label
+            text: !lambda |-
+              char buf[8];
+              snprintf(buf, sizeof(buf), "%d", (int) x);
+              return std::string(buf);
+
+binary_sensor:
+  - platform: gpio
+    id: encoder_btn
+    pin:
+      number: GPIO0
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+  - platform: homeassistant
+    id: right_lamp_state
+    entity_id: switch.right_bed_lamp
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: 'return x;'
+            then:
+              - lvgl.label.update:
+                  id: right_icon
+                  text_color: 0xFFFFFF
+              - lvgl.label.update:
+                  id: right_state_lbl
+                  text: "ON"
+            else:
+              - lvgl.label.update:
+                  id: right_icon
+                  text_color: 0x555555
+              - lvgl.label.update:
+                  id: right_state_lbl
+                  text: "OFF"
+  - platform: homeassistant
+    id: left_lamp_state
+    entity_id: switch.left_bed_lamp
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: 'return x;'
+            then:
+              - lvgl.label.update:
+                  id: left_icon
+                  text_color: 0xFFFFFF
+              - lvgl.label.update:
+                  id: left_state_lbl
+                  text: "ON"
+            else:
+              - lvgl.label.update:
+                  id: left_icon
+                  text_color: 0x555555
+              - lvgl.label.update:
+                  id: left_state_lbl
+                  text: "OFF"
+
+lvgl:
+  rotation: 0
+  displays:
+    - disp
+  encoders:
+    - sensor: encoder
+      enter_button: encoder_btn
+  theme:
+    obj:
+      border_width: 0
+    button:
+      bg_color: 0xFFFFFF
+      bg_opa: TRANSP
+      border_color: 0xFFFFFF
+      border_opa: 40%
+      border_width: 1
+      radius: 6
+      text_color: 0xFFFFFF
+      pad_all: 2
+      pressed:
+        bg_opa: 30%
+      focused:
+        border_opa: 100%
+        border_width: 2
+        bg_opa: 20%
+  top_layer:
+    widgets:
+      - obj:
+          align: TOP_MID
+          x: 0
+          y: 0
+          width: 170
+          height: 26
+          bg_color: 0x000000
+          bg_opa: COVER
+          border_width: 0
+          radius: 0
+          pad_left: 8
+          pad_right: 8
+          scrollable: false
+          clickable: false
+          widgets:
+            - label:
+                id: clock_label
+                align: LEFT_MID
+                text: "--:--"
+                text_font: montserrat_16
+                text_color: 0xFFFFFF
+            - label:
+                align: RIGHT_MID
+                text: "\uF1EB"
+                text_font: montserrat_16
+                text_color: 0xFFFFFF
+            - label:
+                id: wifi_label
+                align: RIGHT_MID
+                x: -22
+                text: ""
+                text_font: montserrat_14
+                text_color: 0x888888
+  pages:
+    - id: home_page
+      bg_color: 0x000000
+      bg_opa: COVER
+      border_width: 0
+      pad_all: 0
+      scrollable: false
+      widgets:
+        - obj:
+            x: 0
+            y: 26
+            width: 170
+            height: 294
+            bg_opa: TRANSP
+            border_width: 0
+            radius: 0
+            pad_top: 8
+            pad_bottom: 8
+            pad_left: 10
+            pad_right: 10
+            pad_row: 10
+            scrollable: false
+            clickable: false
+            layout:
+              type: FLEX
+              flex_flow: COLUMN
+              flex_align_main: CENTER
+              flex_align_cross: CENTER
+            widgets:
+              - button:
+                  id: right_tile
+                  width: 150
+                  height: 78
+                  on_click:
+                    - lvgl.page.show: right_page
+                  widgets:
+                    - label:
+                        id: right_icon
+                        align: TOP_MID
+                        y: 10
+                        text: "\U000F0335"
+                        text_font: mdi_36
+                        text_color: 0x888888
+                    - label:
+                        align: BOTTOM_MID
+                        y: -6
+                        text: "Right Lamp"
+                        text_font: montserrat_14
+                        text_color: 0xFFFFFF
+              - button:
+                  id: left_tile
+                  width: 150
+                  height: 78
+                  on_click:
+                    - lvgl.page.show: left_page
+                  widgets:
+                    - label:
+                        id: left_icon
+                        align: TOP_MID
+                        y: 10
+                        text: "\U000F0335"
+                        text_font: mdi_36
+                        text_color: 0x888888
+                    - label:
+                        align: BOTTOM_MID
+                        y: -6
+                        text: "Left Lamp"
+                        text_font: montserrat_14
+                        text_color: 0xFFFFFF
+              - button:
+                  id: alloff_tile
+                  width: 150
+                  height: 78
+                  on_click:
+                    - homeassistant.service:
+                        service: switch.turn_off
+                        data:
+                          entity_id: switch.right_bed_lamp
+                    - homeassistant.service:
+                        service: switch.turn_off
+                        data:
+                          entity_id: switch.left_bed_lamp
+                  widgets:
+                    - label:
+                        align: TOP_MID
+                        y: 10
+                        text: "\U000F0336"
+                        text_font: mdi_36
+                        text_color: 0xFFFFFF
+                    - label:
+                        align: BOTTOM_MID
+                        y: -6
+                        text: "All Off"
+                        text_font: montserrat_14
+                        text_color: 0xFFFFFF
+    - id: right_page
+      bg_color: 0x000000
+      bg_opa: COVER
+      border_width: 0
+      pad_all: 0
+      scrollable: false
+      widgets:
+        - obj:
+            x: 0
+            y: 26
+            width: 170
+            height: 294
+            bg_opa: TRANSP
+            border_width: 0
+            radius: 0
+            pad_top: 10
+            pad_bottom: 10
+            pad_left: 12
+            pad_right: 12
+            pad_row: 10
+            scrollable: false
+            clickable: false
+            layout:
+              type: FLEX
+              flex_flow: COLUMN
+              flex_align_main: CENTER
+              flex_align_cross: CENTER
+            widgets:
+              - label:
+                  text: "Right Lamp"
+                  text_font: montserrat_18
+                  text_color: 0xFFFFFF
+              - label:
+                  id: right_state_lbl
+                  text: "--"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+              - button:
+                  width: 146
+                  height: 44
+                  on_click:
+                    - homeassistant.service:
+                        service: switch.turn_on
+                        data:
+                          entity_id: switch.right_bed_lamp
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "On"
+                        text_font: montserrat_18
+              - button:
+                  width: 146
+                  height: 44
+                  on_click:
+                    - homeassistant.service:
+                        service: switch.turn_off
+                        data:
+                          entity_id: switch.right_bed_lamp
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "Off"
+                        text_font: montserrat_18
+              - button:
+                  width: 146
+                  height: 44
+                  on_click:
+                    - lvgl.page.show: home_page
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "\uF053  Back"
+                        text_font: montserrat_18
+    - id: left_page
+      bg_color: 0x000000
+      bg_opa: COVER
+      border_width: 0
+      pad_all: 0
+      scrollable: false
+      widgets:
+        - obj:
+            x: 0
+            y: 26
+            width: 170
+            height: 294
+            bg_opa: TRANSP
+            border_width: 0
+            radius: 0
+            pad_top: 10
+            pad_bottom: 10
+            pad_left: 12
+            pad_right: 12
+            pad_row: 10
+            scrollable: false
+            clickable: false
+            layout:
+              type: FLEX
+              flex_flow: COLUMN
+              flex_align_main: CENTER
+              flex_align_cross: CENTER
+            widgets:
+              - label:
+                  text: "Left Lamp"
+                  text_font: montserrat_18
+                  text_color: 0xFFFFFF
+              - label:
+                  id: left_state_lbl
+                  text: "--"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+              - button:
+                  width: 146
+                  height: 44
+                  on_click:
+                    - homeassistant.service:
+                        service: switch.turn_on
+                        data:
+                          entity_id: switch.left_bed_lamp
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "On"
+                        text_font: montserrat_18
+              - button:
+                  width: 146
+                  height: 44
+                  on_click:
+                    - homeassistant.service:
+                        service: switch.turn_off
+                        data:
+                          entity_id: switch.left_bed_lamp
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "Off"
+                        text_font: montserrat_18
+              - button:
+                  width: 146
+                  height: 44
+                  on_click:
+                    - lvgl.page.show: home_page
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "\uF053  Back"
+                        text_font: montserrat_18
+
+button:
+  - platform: restart
+    name: "Remote Restart"
