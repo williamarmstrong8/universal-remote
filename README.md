@@ -58,18 +58,21 @@ Or add the device through the ESPHome dashboard in Home Assistant and deploy fro
 
 ### Rotary encoder (all screens)
 
-- **Turn** — navigate focused UI element; on the TV screen, sends directional keys
-- **Press** — activate focused element; on the TV screen, sends OK / Enter
-- **Double-press** (TV screen) — toggle encoder axis (horizontal ↔ / vertical ↕)
-- **Hold 500 ms** (TV screen) — return to home
+- **Turn** — navigate focused UI element; on the TV screen, sends directional keys (the matching D-pad button flashes to confirm)
+- **Press** — activate focused element; on the TV screen, sends OK / `DPAD_CENTER` (the OK button flashes)
+- **Double-press** (TV screen) — toggle dial orientation between horizontal (← →) and vertical (↑ ↓); the active axis is shown in the top-right of the TV screen
+- **Hold ~500 ms** (TV screen) — return to home; a progress bar fills inside the Back button as you hold, and cancels if you let go early
 
-### TV screen (on-screen buttons)
+On the TV screen the dial does **not** move the hover between buttons — it drives the D-pad directly. In horizontal mode a right/left turn sends `DPAD_RIGHT`/`DPAD_LEFT`; in vertical mode it sends `DPAD_DOWN`/`DPAD_UP`.
 
-| Button | Action |
-|--------|--------|
-| ↑ ↓ ← → | Direction keys |
-| OK | Enter |
-| ← (bottom) | Back to home |
+### TV screen layout
+
+| Element | Purpose |
+|---------|---------|
+| ↑ ↓ ← → | D-pad indicators (flash on the matching dial turn) |
+| OK | Center / select indicator (flashes on press) |
+| Back (bottom) | Hold-to-home target; shows the long-press progress bar |
+| Top-right ← → / ↑ ↓ | Current dial orientation |
 
 ## Customization
 

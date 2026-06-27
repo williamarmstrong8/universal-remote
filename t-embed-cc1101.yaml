@@ -61,6 +61,12 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
+  # millis() timestamp of the last TV-screen enter/exit. Used to swallow the stray
+  # button click that the shared encoder button produces across a screen transition.
+  - id: tv_guard_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
 
 time:
   - platform: homeassistant
@@ -171,25 +177,31 @@ script:
             - lvgl.resume:
             - lvgl.widget.redraw:
 
-  # Fills the hold-progress bar over ~500ms. Stopped on early release.
+  # Hold-to-home: fills the progress bar inside the Back button over ~500ms, then
+  # returns to the Lily home screen. Stopped on early release (on_release) so quick
+  # taps never complete. The leading delay keeps single/double taps from flashing it.
   - id: tv_hold_progress
+    mode: restart
     then:
+      - delay: 140ms
       - lvgl.widget.show: tv_hold_bar
       - lvgl.bar.update: { id: tv_hold_bar, value: 0 }
-      - delay: 83ms
-      - lvgl.bar.update: { id: tv_hold_bar, value: 17 }
-      - delay: 83ms
-      - lvgl.bar.update: { id: tv_hold_bar, value: 33 }
-      - delay: 83ms
+      - delay: 60ms
+      - lvgl.bar.update: { id: tv_hold_bar, value: 25 }
+      - delay: 75ms
       - lvgl.bar.update: { id: tv_hold_bar, value: 50 }
-      - delay: 83ms
-      - lvgl.bar.update: { id: tv_hold_bar, value: 67 }
-      - delay: 83ms
-      - lvgl.bar.update: { id: tv_hold_bar, value: 83 }
-      - delay: 83ms
+      - delay: 75ms
+      - lvgl.bar.update: { id: tv_hold_bar, value: 75 }
+      - delay: 75ms
       - lvgl.bar.update: { id: tv_hold_bar, value: 100 }
+      - delay: 75ms
+      - lvgl.widget.hide: tv_hold_bar
+      - lvgl.widget.hide: tv_panel
+      - lvgl.widget.show: home_panel
+      - lambda: 'id(tv_active) = false; id(tv_guard_ms) = millis();'
 
-  # Syncs the axis glyph to the current tv_axis value.
+  # Syncs the axis indicator to the current tv_axis value. Uses LVGL's built-in
+  # LEFT/RIGHT and UP/DOWN symbols, which are present in the montserrat fonts.
   - id: tv_update_axis_label
     then:
       - if:
@@ -198,11 +210,11 @@ script:
           then:
             - lvgl.label.update:
                 id: tv_axis_label
-                text: ""   # fa-arrows-h  ↔
+                text: !lambda 'return std::string("\uF053 \uF054");'   # horizontal
           else:
             - lvgl.label.update:
                 id: tv_axis_label
-                text: ""   # fa-arrows-v  ↕
+                text: !lambda 'return std::string("\uF077 \uF078");'   # vertical
 
   # Brief brightness pulse on the axis indicator to confirm an axis switch.
   - id: tv_pulse_axis
@@ -214,6 +226,38 @@ script:
       - lvgl.label.update:
           id: tv_axis_label
           text_color: 0x666666
+
+  # Brief highlight on a D-pad button to confirm the dial/OK action that was sent.
+  - id: tv_flash_up
+    mode: restart
+    then:
+      - lvgl.widget.update: { id: tv_up_btn, bg_color: 0xFFFFFF, bg_opa: 40%, border_opa: 100% }
+      - delay: 160ms
+      - lvgl.widget.update: { id: tv_up_btn, bg_opa: TRANSP, border_opa: 35% }
+  - id: tv_flash_down
+    mode: restart
+    then:
+      - lvgl.widget.update: { id: tv_down_btn, bg_color: 0xFFFFFF, bg_opa: 40%, border_opa: 100% }
+      - delay: 160ms
+      - lvgl.widget.update: { id: tv_down_btn, bg_opa: TRANSP, border_opa: 35% }
+  - id: tv_flash_left
+    mode: restart
+    then:
+      - lvgl.widget.update: { id: tv_left_btn, bg_color: 0xFFFFFF, bg_opa: 40%, border_opa: 100% }
+      - delay: 160ms
+      - lvgl.widget.update: { id: tv_left_btn, bg_opa: TRANSP, border_opa: 35% }
+  - id: tv_flash_right
+    mode: restart
+    then:
+      - lvgl.widget.update: { id: tv_right_btn, bg_color: 0xFFFFFF, bg_opa: 40%, border_opa: 100% }
+      - delay: 160ms
+      - lvgl.widget.update: { id: tv_right_btn, bg_opa: TRANSP, border_opa: 35% }
+  - id: tv_flash_ok
+    mode: restart
+    then:
+      - lvgl.widget.update: { id: tv_ok_btn, bg_color: 0xFFFFFF, bg_opa: 40%, border_opa: 100% }
+      - delay: 160ms
+      - lvgl.widget.update: { id: tv_ok_btn, bg_opa: TRANSP, border_opa: 35% }
 
 sensor:
   - platform: rotary_encoder
@@ -236,12 +280,14 @@ sensor:
                       data: { command: DPAD_RIGHT }
                       data_template: { entity_id: "{{ ent }}" }
                       variables: { ent: 'return id(selected_tv_entity);' }
+                  - script.execute: tv_flash_right
                 else:
                   - homeassistant.service:
                       service: remote.send_command
                       data: { command: DPAD_DOWN }
                       data_template: { entity_id: "{{ ent }}" }
                       variables: { ent: 'return id(selected_tv_entity);' }
+                  - script.execute: tv_flash_down
     on_anticlockwise:
       - script.execute: wake_screen
       - if:
@@ -257,12 +303,14 @@ sensor:
                       data: { command: DPAD_LEFT }
                       data_template: { entity_id: "{{ ent }}" }
                       variables: { ent: 'return id(selected_tv_entity);' }
+                  - script.execute: tv_flash_left
                 else:
                   - homeassistant.service:
                       service: remote.send_command
                       data: { command: DPAD_UP }
                       data_template: { entity_id: "{{ ent }}" }
                       variables: { ent: 'return id(selected_tv_entity);' }
+                  - script.execute: tv_flash_up
   - platform: wifi_signal
     id: wifi_db
     update_interval: 15s
@@ -295,6 +343,11 @@ binary_sensor:
       mode:
         input: true
         pullup: true
+    # TV-screen interaction is fully encoder-driven (the D-pad buttons are not in the
+    # encoder focus group, so the dial never moves the hover between them).
+    #   on_press/on_release : drive the hold-to-home progress bar in the Back button.
+    #   on_multi_click      : single press = OK, double press = toggle axis.
+    # On non-TV screens these are guarded out and LVGL's enter_button handles clicks.
     on_press:
       - script.execute: wake_screen
       - if:
@@ -303,46 +356,39 @@ binary_sensor:
           then:
             - script.execute: tv_hold_progress
     on_release:
-      # Cancel hold animation on any release (no-op if already stopped/hidden).
+      # Cancel the hold progress on any release (no-op if already finished/hidden).
       - script.stop: tv_hold_progress
       - lvgl.widget.hide: tv_hold_bar
-    on_click:
-      min_length: 30ms
-      max_length: 400ms
-      then:
-        - if:
-            condition:
-              lambda: 'return id(tv_active);'
-            then:
-              - homeassistant.service:
-                  service: remote.send_command
-                  data: { command: DPAD_CENTER }
-                  data_template: { entity_id: "{{ ent }}" }
-                  variables: { ent: 'return id(selected_tv_entity);' }
-    on_double_click:
-      min_length: 30ms
-      max_length: 350ms
-      then:
-        - if:
-            condition:
-              lambda: 'return id(tv_active);'
-            then:
-              - lambda: 'id(tv_axis) = (id(tv_axis) == 0) ? 1 : 0;'
-              - script.execute: tv_update_axis_label
-              - script.execute: tv_pulse_axis
     on_multi_click:
+      # Double press -> toggle dial orientation (horizontal <-> vertical).
       - timing:
-          - ON for at least 500ms
+          - ON for at most 0.4s
+          - OFF for at most 0.25s
+          - ON for at most 0.4s
+          - OFF for at least 0.1s
         then:
           - if:
               condition:
-                lambda: 'return id(tv_active);'
+                lambda: 'return id(tv_active) && (millis() - id(tv_guard_ms)) > 450;'
               then:
-                - script.stop: tv_hold_progress
-                - lvgl.widget.hide: tv_hold_bar
-                - lvgl.widget.hide: tv_panel
-                - lvgl.widget.show: home_panel
-                - lambda: 'id(tv_active) = false;'
+                - lambda: 'id(tv_axis) = (id(tv_axis) == 0) ? 1 : 0;'
+                - script.execute: tv_update_axis_label
+                - script.execute: tv_pulse_axis
+      # Single press -> OK / select (confirmed once no second press follows).
+      - timing:
+          - ON for at most 0.4s
+          - OFF for at least 0.25s
+        then:
+          - if:
+              condition:
+                lambda: 'return id(tv_active) && (millis() - id(tv_guard_ms)) > 450;'
+              then:
+                - homeassistant.service:
+                    service: remote.send_command
+                    data: { command: DPAD_CENTER }
+                    data_template: { entity_id: "{{ ent }}" }
+                    variables: { ent: 'return id(selected_tv_entity);' }
+                - script.execute: tv_flash_ok
   - platform: homeassistant
     id: right_lamp_state
     entity_id: switch.right_bed_lamp
@@ -470,26 +516,6 @@ lvgl:
                 text: ""
                 text_font: montserrat_16
                 text_color: 0x888888
-      # Hold-progress bar — sits flush at the bottom of the screen.
-      # Shown/hidden by tv_hold_progress script and on_release.
-      - bar:
-          id: tv_hold_bar
-          hidden: true
-          align: BOTTOM_MID
-          y: -4
-          width: 130
-          height: 3
-          min_value: 0
-          max_value: 100
-          value: 0
-          bg_color: 0x2a2a2a
-          bg_opa: COVER
-          border_width: 0
-          radius: 2
-          indicator:
-            bg_color: 0xFFFFFF
-            bg_opa: COVER
-            radius: 2
   pages:
     - id: home_page
       bg_color: 0x000000
@@ -574,14 +600,21 @@ lvgl:
                   width: 150
                   height: 72
                   on_click:
-                    # Single TV entity. D-pad uses remote.send_command, which only works
-                    # against a remote.* entity. The Android TV Remote integration pairs
-                    # remote.kitchen_tv with media_player.kitchen_tv on the same device.
-                    - lambda: 'id(selected_tv_entity) = "remote.kitchen_tv"; id(tv_axis) = 0; id(tv_active) = true;'
-                    - lvgl.label.update: { id: tv_title, text: "TV" }
-                    - script.execute: tv_update_axis_label
-                    - lvgl.widget.hide: home_panel
-                    - lvgl.widget.show: tv_panel
+                    # Enter the TV screen. Guarded so the release-click that lands here right
+                    # after a long-press-to-home (this tile is the focused widget) can't bounce
+                    # straight back in, and so a re-entry can't reset the axis mid-session.
+                    - if:
+                        condition:
+                          lambda: 'return !id(tv_active) && (millis() - id(tv_guard_ms)) > 450;'
+                        then:
+                          # Single TV entity. D-pad uses remote.send_command, which only works
+                          # against a remote.* entity. The Android TV Remote integration pairs
+                          # remote.kitchen_tv with media_player.kitchen_tv on the same device.
+                          - lambda: 'id(selected_tv_entity) = "remote.kitchen_tv"; id(tv_axis) = 0; id(tv_active) = true; id(tv_guard_ms) = millis();'
+                          - lvgl.label.update: { id: tv_title, text: "TV" }
+                          - script.execute: tv_update_axis_label
+                          - lvgl.widget.hide: home_panel
+                          - lvgl.widget.show: tv_panel
                   widgets:
                     - label: { align: TOP_MID, y: 8, text: "", text_font: montserrat_36, text_color: 0xFFFFFF }
                     - label: { align: BOTTOM_MID, y: -6, text: "TV", text_font: montserrat_14, text_color: 0xFFFFFF }
@@ -636,11 +669,12 @@ lvgl:
                         id: tv_axis_label
                         align: RIGHT_MID
                         x: -4
-                        text: ""
-                        text_font: montserrat_14
+                        text: " "
+                        text_font: montserrat_18
                         text_color: 0x666666
               - button:
                   id: tv_up_btn
+                  group: tv_group
                   grid_cell_row_pos: 1
                   grid_cell_column_pos: 1
                   grid_cell_x_align: STRETCH
@@ -651,6 +685,7 @@ lvgl:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
                   id: tv_left_btn
+                  group: tv_group
                   grid_cell_row_pos: 2
                   grid_cell_column_pos: 0
                   grid_cell_x_align: STRETCH
@@ -661,6 +696,7 @@ lvgl:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
                   id: tv_ok_btn
+                  group: tv_group
                   grid_cell_row_pos: 2
                   grid_cell_column_pos: 1
                   grid_cell_x_align: STRETCH
@@ -671,6 +707,7 @@ lvgl:
                     - label: { align: CENTER, text: "OK", text_font: montserrat_18 }
               - button:
                   id: tv_right_btn
+                  group: tv_group
                   grid_cell_row_pos: 2
                   grid_cell_column_pos: 2
                   grid_cell_x_align: STRETCH
@@ -681,6 +718,7 @@ lvgl:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
                   id: tv_down_btn
+                  group: tv_group
                   grid_cell_row_pos: 3
                   grid_cell_column_pos: 1
                   grid_cell_x_align: STRETCH
@@ -691,6 +729,7 @@ lvgl:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
                   id: tv_back_btn
+                  group: tv_group
                   grid_cell_row_pos: 4
                   grid_cell_column_pos: 0
                   grid_cell_column_span: 3
@@ -704,6 +743,21 @@ lvgl:
                     - lambda: 'id(tv_active) = false;'
                   widgets:
                     - label: { align: CENTER, text: "  ", text_font: montserrat_18 }
+                    - bar:
+                        id: tv_hold_bar
+                        hidden: true
+                        align: BOTTOM_MID
+                        y: -3
+                        width: 150
+                        height: 4
+                        min_value: 0
+                        max_value: 100
+                        value: 0
+                        bg_color: 0x2a2a2a
+                        bg_opa: COVER
+                        border_width: 0
+                        radius: 2
+                        indicator: { bg_color: 0xFFFFFF, bg_opa: COVER, radius: 2 }
         # ---------- ROOMS PANEL (media room select) ----------
         - obj:
             id: rooms_panel
