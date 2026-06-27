@@ -42,7 +42,7 @@ esphome secrets generate-key
 | Area | What to change |
 |------|----------------|
 | Lamps | `switch.right_bed_lamp`, `switch.left_bed_lamp`, `switch.desk_lamp_2` |
-| TV | `remote.tv` in the TV tile `on_click` lambda |
+| TV | `remote.kitchen_tv` in the TV tile `on_click` lambda (must be a `remote.*` entity, e.g. from the Android TV Remote integration) |
 | Media rooms | `media_player.flr_2_kitchen`, `media_player.flr_1_living_room`, etc. |
 | Now playing | Copy the Kitchen `text_sensor` trio and point each room at its `media_player` entity |
 

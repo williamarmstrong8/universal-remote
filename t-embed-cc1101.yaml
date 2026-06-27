@@ -233,13 +233,13 @@ sensor:
                 then:
                   - homeassistant.service:
                       service: remote.send_command
-                      data: { command: KEY_RIGHT }
+                      data: { command: DPAD_RIGHT }
                       data_template: { entity_id: "{{ ent }}" }
                       variables: { ent: 'return id(selected_tv_entity);' }
                 else:
                   - homeassistant.service:
                       service: remote.send_command
-                      data: { command: KEY_DOWN }
+                      data: { command: DPAD_DOWN }
                       data_template: { entity_id: "{{ ent }}" }
                       variables: { ent: 'return id(selected_tv_entity);' }
     on_anticlockwise:
@@ -254,13 +254,13 @@ sensor:
                 then:
                   - homeassistant.service:
                       service: remote.send_command
-                      data: { command: KEY_LEFT }
+                      data: { command: DPAD_LEFT }
                       data_template: { entity_id: "{{ ent }}" }
                       variables: { ent: 'return id(selected_tv_entity);' }
                 else:
                   - homeassistant.service:
                       service: remote.send_command
-                      data: { command: KEY_UP }
+                      data: { command: DPAD_UP }
                       data_template: { entity_id: "{{ ent }}" }
                       variables: { ent: 'return id(selected_tv_entity);' }
   - platform: wifi_signal
@@ -316,7 +316,7 @@ binary_sensor:
             then:
               - homeassistant.service:
                   service: remote.send_command
-                  data: { command: KEY_ENTER }
+                  data: { command: DPAD_CENTER }
                   data_template: { entity_id: "{{ ent }}" }
                   variables: { ent: 'return id(selected_tv_entity);' }
     on_double_click:
@@ -574,8 +574,10 @@ lvgl:
                   width: 150
                   height: 72
                   on_click:
-                    # Single TV entity. Set this to your TV's remote entity in HA.
-                    - lambda: 'id(selected_tv_entity) = "remote.tv"; id(tv_axis) = 0; id(tv_active) = true;'
+                    # Single TV entity. D-pad uses remote.send_command, which only works
+                    # against a remote.* entity. The Android TV Remote integration pairs
+                    # remote.kitchen_tv with media_player.kitchen_tv on the same device.
+                    - lambda: 'id(selected_tv_entity) = "remote.kitchen_tv"; id(tv_axis) = 0; id(tv_active) = true;'
                     - lvgl.label.update: { id: tv_title, text: "TV" }
                     - script.execute: tv_update_axis_label
                     - lvgl.widget.hide: home_panel
@@ -644,7 +646,7 @@ lvgl:
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   on_click:
-                    - homeassistant.service: { service: remote.send_command, data: { command: KEY_UP }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
+                    - homeassistant.service: { service: remote.send_command, data: { command: DPAD_UP }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
                   widgets:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
@@ -654,7 +656,7 @@ lvgl:
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   on_click:
-                    - homeassistant.service: { service: remote.send_command, data: { command: KEY_LEFT }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
+                    - homeassistant.service: { service: remote.send_command, data: { command: DPAD_LEFT }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
                   widgets:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
@@ -664,7 +666,7 @@ lvgl:
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   on_click:
-                    - homeassistant.service: { service: remote.send_command, data: { command: KEY_ENTER }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
+                    - homeassistant.service: { service: remote.send_command, data: { command: DPAD_CENTER }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
                   widgets:
                     - label: { align: CENTER, text: "OK", text_font: montserrat_18 }
               - button:
@@ -674,7 +676,7 @@ lvgl:
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   on_click:
-                    - homeassistant.service: { service: remote.send_command, data: { command: KEY_RIGHT }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
+                    - homeassistant.service: { service: remote.send_command, data: { command: DPAD_RIGHT }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
                   widgets:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
@@ -684,7 +686,7 @@ lvgl:
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   on_click:
-                    - homeassistant.service: { service: remote.send_command, data: { command: KEY_DOWN }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
+                    - homeassistant.service: { service: remote.send_command, data: { command: DPAD_DOWN }, data_template: { entity_id: "{{ ent }}" }, variables: { ent: 'return id(selected_tv_entity);' } }
                   widgets:
                     - label: { align: CENTER, text: "", text_font: montserrat_24 }
               - button:
